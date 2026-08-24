@@ -39,6 +39,8 @@
   .btn:hover { background-color: #004494; }
   .btn-secondary { background-color: #6c757d; }
   .btn-secondary:hover { background-color: #5a6268; }
+  .btn-icon { background-color: #28a745; }
+  .btn-icon:hover { background-color: #218838; }
   
   #number-display { 
     font-size: 64px; 
@@ -50,8 +52,12 @@
     font-size: 24px; 
     color: #0056b3; 
     font-weight: 500;
-    margin-bottom: 30px; 
-    min-height: 36px; /* Prevents jumping when text appears */
+    margin-bottom: 10px; 
+    min-height: 36px;
+  }
+  #listen-container {
+    min-height: 50px;
+    margin-bottom: 20px;
   }
   .hidden { display: none; }
 </style>
@@ -62,7 +68,7 @@
   <!-- Start Screen -->
   <div id="start-screen">
     <h2>German Numbers A1</h2>
-    <p style="color: #666; margin-bottom: 24px;">Practice numbers from 0 to 999</p>
+    <p style="color: #666; margin-bottom: 24px;">Practice numbers from 0 to 999 with audio</p>
     <button class="btn" onclick="startPractice()">Practice numbers</button>
   </div>
 
@@ -70,6 +76,10 @@
   <div id="practice-screen" class="hidden">
     <div id="number-display">0</div>
     <div id="spelling-display"></div>
+    
+    <div id="listen-container">
+      <button id="listen-btn" class="btn btn-icon hidden" onclick="playAudio()">🔊 Listen Again</button>
+    </div>
     
     <div>
       <button class="btn" onclick="checkNumber()">Check</button>
@@ -80,12 +90,12 @@
 
 <script>
   let currentNumber = 0;
+  let currentSpelling = "";
 
-  // The logic to convert digits into correct German spelling
+  // Logic to convert digits into correct German spelling
   function numberToGerman(num) {
     if (num === 0) return "null";
     
-    // Arrays containing base German number vocabulary
     const units = ["", "ein", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun"];
     const ones = ["", "eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun"];
     const teens = ["zehn", "elf", "zwölf", "dreizehn", "vierzehn", "fünfzehn", "sechzehn", "siebzehn", "achtzehn", "neunzehn"];
@@ -95,21 +105,17 @@
     let hundreds = Math.floor(num / 100);
     let remainder = num % 100;
     
-    // Handle Hundreds (e.g., 100 -> einhundert, 200 -> zweihundert)
     if (hundreds === 1) result += "einhundert";
     else if (hundreds > 1) result += units[hundreds] + "hundert";
     
-    // Handle remainder (0-99)
     if (remainder > 0) {
       if (remainder < 10) {
-         result += ones[remainder]; // 1-9
+         result += ones[remainder];
       } else if (remainder >= 10 && remainder < 20) {
-         result += teens[remainder - 10]; // 10-19
+         result += teens[remainder - 10];
       } else {
          let t = Math.floor(remainder / 10);
          let u = remainder % 10;
-         
-         // 20, 30, 40 vs 21, 32, 45
          if (u === 0) {
             result += tens[t]; 
          } else {
@@ -117,12 +123,25 @@
          }
       }
     }
-    
-    // Capitalize the first letter for display
     return result.charAt(0).toUpperCase() + result.slice(1);
   }
 
-  // Application flow functions
+  // Audio function using the browser's native speech synthesis
+  function playAudio() {
+    if ('speechSynthesis' in window) {
+      // Cancel any ongoing speech to prevent overlap
+      window.speechSynthesis.cancel(); 
+      
+      const utterance = new SpeechSynthesisUtterance(currentSpelling);
+      utterance.lang = 'de-DE'; // Forces the browser to use a German voice
+      utterance.rate = 0.9; // Slightly slower for language learners
+      window.speechSynthesis.speak(utterance);
+    } else {
+      alert("Sorry, your browser does not support text-to-speech audio.");
+    }
+  }
+
+  // Application flow
   function startPractice() {
     document.getElementById('start-screen').classList.add('hidden');
     document.getElementById('practice-screen').classList.remove('hidden');
@@ -130,13 +149,22 @@
   }
 
   function nextNumber() {
-    currentNumber = Math.floor(Math.random() * 1000); // Generates 0 to 999
+    currentNumber = Math.floor(Math.random() * 1000);
     document.getElementById('number-display').innerText = currentNumber;
-    document.getElementById('spelling-display').innerText = ""; // Clear old spelling
+    
+    // Reset the display for the next number
+    document.getElementById('spelling-display').innerText = "";
+    document.getElementById('listen-btn').classList.add('hidden');
+    window.speechSynthesis.cancel(); 
   }
 
   function checkNumber() {
-    document.getElementById('spelling-display').innerText = numberToGerman(currentNumber);
+    currentSpelling = numberToGerman(currentNumber);
+    document.getElementById('spelling-display').innerText = currentSpelling;
+    document.getElementById('listen-btn').classList.remove('hidden');
+    
+    // Automatically play the audio when "Check" is clicked
+    playAudio();
   }
 </script>
 </body>
