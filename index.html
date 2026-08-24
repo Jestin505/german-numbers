@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>German Numbers Practice A1</title>
+<style>
+  body { 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    height: 100vh; 
+    background-color: #f0f4f8; 
+    margin: 0; 
+  }
+  .app-card { 
+    text-align: center; 
+    background: white; 
+    padding: 40px; 
+    border-radius: 16px; 
+    box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+    width: 90%; 
+    max-width: 400px; 
+  }
+  h2 { color: #333; margin-top: 0; }
+  .btn { 
+    background-color: #0056b3; 
+    color: white; 
+    border: none; 
+    padding: 12px 24px; 
+    font-size: 16px; 
+    font-weight: bold;
+    border-radius: 8px; 
+    cursor: pointer; 
+    margin: 8px; 
+    transition: background-color 0.2s;
+  }
+  .btn:hover { background-color: #004494; }
+  .btn-secondary { background-color: #6c757d; }
+  .btn-secondary:hover { background-color: #5a6268; }
+  
+  #number-display { 
+    font-size: 64px; 
+    font-weight: bold; 
+    color: #1a1a1a;
+    margin: 20px 0; 
+  }
+  #spelling-display { 
+    font-size: 24px; 
+    color: #0056b3; 
+    font-weight: 500;
+    margin-bottom: 30px; 
+    min-height: 36px; /* Prevents jumping when text appears */
+  }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<div class="app-card">
+  <!-- Start Screen -->
+  <div id="start-screen">
+    <h2>German Numbers A1</h2>
+    <p style="color: #666; margin-bottom: 24px;">Practice numbers from 0 to 999</p>
+    <button class="btn" onclick="startPractice()">Practice numbers</button>
+  </div>
+
+  <!-- Practice Screen -->
+  <div id="practice-screen" class="hidden">
+    <div id="number-display">0</div>
+    <div id="spelling-display"></div>
+    
+    <div>
+      <button class="btn" onclick="checkNumber()">Check</button>
+      <button class="btn btn-secondary" onclick="nextNumber()">Next</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentNumber = 0;
+
+  // The logic to convert digits into correct German spelling
+  function numberToGerman(num) {
+    if (num === 0) return "null";
+    
+    // Arrays containing base German number vocabulary
+    const units = ["", "ein", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun"];
+    const ones = ["", "eins", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun"];
+    const teens = ["zehn", "elf", "zwölf", "dreizehn", "vierzehn", "fünfzehn", "sechzehn", "siebzehn", "achtzehn", "neunzehn"];
+    const tens = ["", "", "zwanzig", "dreißig", "vierzig", "fünfzig", "sechzig", "siebzig", "achtzig", "neunzig"];
+    
+    let result = "";
+    let hundreds = Math.floor(num / 100);
+    let remainder = num % 100;
+    
+    // Handle Hundreds (e.g., 100 -> einhundert, 200 -> zweihundert)
+    if (hundreds === 1) result += "einhundert";
+    else if (hundreds > 1) result += units[hundreds] + "hundert";
+    
+    // Handle remainder (0-99)
+    if (remainder > 0) {
+      if (remainder < 10) {
+         result += ones[remainder]; // 1-9
+      } else if (remainder >= 10 && remainder < 20) {
+         result += teens[remainder - 10]; // 10-19
+      } else {
+         let t = Math.floor(remainder / 10);
+         let u = remainder % 10;
+         
+         // 20, 30, 40 vs 21, 32, 45
+         if (u === 0) {
+            result += tens[t]; 
+         } else {
+            result += units[u] + "und" + tens[t]; 
+         }
+      }
+    }
+    
+    // Capitalize the first letter for display
+    return result.charAt(0).toUpperCase() + result.slice(1);
+  }
+
+  // Application flow functions
+  function startPractice() {
+    document.getElementById('start-screen').classList.add('hidden');
+    document.getElementById('practice-screen').classList.remove('hidden');
+    nextNumber();
+  }
+
+  function nextNumber() {
+    currentNumber = Math.floor(Math.random() * 1000); // Generates 0 to 999
+    document.getElementById('number-display').innerText = currentNumber;
+    document.getElementById('spelling-display').innerText = ""; // Clear old spelling
+  }
+
+  function checkNumber() {
+    document.getElementById('spelling-display').innerText = numberToGerman(currentNumber);
+  }
+</script>
+</body>
+</html>
