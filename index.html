@@ -17,13 +17,39 @@
   .app-card { 
     text-align: center; 
     background: white; 
-    padding: 40px; 
+    padding: 30px; 
     border-radius: 16px; 
     box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
     width: 90%; 
-    max-width: 400px; 
+    max-width: 450px; 
   }
-  h2 { color: #333; margin-top: 0; }
+  h2 { color: #333; margin-top: 0; margin-bottom: 15px;}
+  
+  /* Settings Bar */
+  .settings-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 25px;
+  }
+  select, .toggle-btn {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    cursor: pointer;
+    background-color: white;
+  }
+  .toggle-btn {
+    background-color: #e2e8f0;
+    font-weight: bold;
+    color: #333;
+  }
+  .toggle-btn:hover { background-color: #cbd5e1; }
+  
   .btn { 
     background-color: #0056b3; 
     color: white; 
@@ -33,7 +59,7 @@
     font-weight: bold;
     border-radius: 8px; 
     cursor: pointer; 
-    margin: 8px; 
+    margin: 6px; 
     transition: background-color 0.2s;
   }
   .btn:hover { background-color: #004494; }
@@ -42,24 +68,26 @@
   .btn-icon { background-color: #28a745; }
   .btn-icon:hover { background-color: #218838; }
   
-  #number-display { 
+  #question-display { 
     font-size: 64px; 
     font-weight: bold; 
     color: #1a1a1a;
-    margin: 20px 0; 
+    margin: 20px 0;
+    min-height: 70px;
+    word-wrap: break-word; /* Prevents long German words from breaking the layout */
   }
-  #spelling-display { 
-    font-size: 24px; 
+  #answer-display { 
+    font-size: 28px; 
     color: #0056b3; 
     font-weight: 500;
-    margin-bottom: 10px; 
-    min-height: 36px;
+    margin-bottom: 15px; 
+    min-height: 40px;
   }
   #listen-container {
     min-height: 50px;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
   }
-  .hidden { display: none; }
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
@@ -68,22 +96,31 @@
   <!-- Start Screen -->
   <div id="start-screen">
     <h2>German Numbers A1</h2>
-    <p style="color: #666; margin-bottom: 24px;">Practice numbers from 0 to 999 with audio</p>
-    <button class="btn" onclick="startPractice()">Practice numbers</button>
+    <p style="color: #666; margin-bottom: 24px;">Practice reading, writing, and listening</p>
+    <button class="btn" onclick="startPractice()">Start Practice</button>
   </div>
 
   <!-- Practice Screen -->
   <div id="practice-screen" class="hidden">
-    <div id="number-display">0</div>
-    <div id="spelling-display"></div>
+    
+    <!-- Controls for Mode and Voice -->
+    <div class="settings-bar">
+      <button class="toggle-btn" id="mode-toggle" onclick="toggleMode()">Mode: Number ➔ Word</button>
+      <select id="voice-select" title="Choose Audio Voice">
+        <option value="">Loading voices...</option>
+      </select>
+    </div>
+
+    <div id="question-display">0</div>
+    <div id="answer-display"></div>
     
     <div id="listen-container">
-      <button id="listen-btn" class="btn btn-icon hidden" onclick="playAudio()">🔊 Listen Again</button>
+      <button id="listen-btn" class="btn btn-icon hidden" onclick="playAudio()">🔊 Play Audio</button>
     </div>
     
     <div>
-      <button class="btn" onclick="checkNumber()">Check</button>
-      <button class="btn btn-secondary" onclick="nextNumber()">Next</button>
+      <button class="btn" onclick="checkAnswer()">Check</button>
+      <button class="btn btn-secondary" onclick="nextQuestion()">Next</button>
     </div>
   </div>
 </div>
@@ -91,8 +128,38 @@
 <script>
   let currentNumber = 0;
   let currentSpelling = "";
+  let isReverseMode = false; // false = Number->Word, true = Word->Number
+  let germanVoices = [];
 
-  // Logic to convert digits into correct German spelling
+  // 1. Detect and load available German voices on the device
+  function populateVoices() {
+    const allVoices = window.speechSynthesis.getVoices();
+    // Filter for any voice containing 'de' (de-DE, de-AT, etc.)
+    germanVoices = allVoices.filter(voice => voice.lang.startsWith('de'));
+    
+    const voiceSelect = document.getElementById('voice-select');
+    voiceSelect.innerHTML = ''; 
+    
+    if (germanVoices.length === 0) {
+      voiceSelect.innerHTML = '<option value="">Default Voice (No German detected)</option>';
+      return;
+    }
+
+    germanVoices.forEach((voice, index) => {
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = voice.name;
+      voiceSelect.appendChild(option);
+    });
+  }
+
+  // Browsers load voices asynchronously, so we wait for them
+  if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = populateVoices;
+  }
+  setTimeout(populateVoices, 1000); // Fallback
+
+  // 2. Translation Logic
   function numberToGerman(num) {
     if (num === 0) return "null";
     
@@ -109,62 +176,84 @@
     else if (hundreds > 1) result += units[hundreds] + "hundert";
     
     if (remainder > 0) {
-      if (remainder < 10) {
-         result += ones[remainder];
-      } else if (remainder >= 10 && remainder < 20) {
-         result += teens[remainder - 10];
-      } else {
+      if (remainder < 10) result += ones[remainder];
+      else if (remainder >= 10 && remainder < 20) result += teens[remainder - 10];
+      else {
          let t = Math.floor(remainder / 10);
          let u = remainder % 10;
-         if (u === 0) {
-            result += tens[t]; 
-         } else {
-            result += units[u] + "und" + tens[t]; 
-         }
+         if (u === 0) result += tens[t]; 
+         else result += units[u] + "und" + tens[t]; 
       }
     }
     return result.charAt(0).toUpperCase() + result.slice(1);
   }
 
-  // Audio function using the browser's native speech synthesis
+  // 3. Audio Player Logic
   function playAudio() {
     if ('speechSynthesis' in window) {
-      // Cancel any ongoing speech to prevent overlap
       window.speechSynthesis.cancel(); 
-      
       const utterance = new SpeechSynthesisUtterance(currentSpelling);
-      utterance.lang = 'de-DE'; // Forces the browser to use a German voice
-      utterance.rate = 0.9; // Slightly slower for language learners
+      
+      const voiceSelect = document.getElementById('voice-select');
+      if (germanVoices.length > 0 && voiceSelect.value !== "") {
+        utterance.voice = germanVoices[voiceSelect.value];
+      } else {
+        utterance.lang = 'de-DE'; 
+      }
+      
+      utterance.rate = 0.85; // Slightly slower for learning
       window.speechSynthesis.speak(utterance);
-    } else {
-      alert("Sorry, your browser does not support text-to-speech audio.");
     }
   }
 
-  // Application flow
+  // 4. Interface Logic
   function startPractice() {
     document.getElementById('start-screen').classList.add('hidden');
     document.getElementById('practice-screen').classList.remove('hidden');
-    nextNumber();
+    populateVoices(); 
+    nextQuestion();
   }
 
-  function nextNumber() {
+  function toggleMode() {
+    isReverseMode = !isReverseMode;
+    const modeBtn = document.getElementById('mode-toggle');
+    if (isReverseMode) {
+      modeBtn.innerText = "Mode: Word ➔ Number";
+      document.getElementById('question-display').style.fontSize = "36px"; // Smaller font so big words fit
+    } else {
+      modeBtn.innerText = "Mode: Number ➔ Word";
+      document.getElementById('question-display').style.fontSize = "64px";
+    }
+    nextQuestion();
+  }
+
+  function nextQuestion() {
     currentNumber = Math.floor(Math.random() * 1000);
-    document.getElementById('number-display').innerText = currentNumber;
+    currentSpelling = numberToGerman(currentNumber);
     
-    // Reset the display for the next number
-    document.getElementById('spelling-display').innerText = "";
-    document.getElementById('listen-btn').classList.add('hidden');
+    document.getElementById('answer-display').innerText = "";
+    
+    if (isReverseMode) {
+      document.getElementById('question-display').innerText = currentSpelling;
+      // In reverse mode, show audio button right away so they can practice listening
+      document.getElementById('listen-btn').classList.remove('hidden'); 
+    } else {
+      document.getElementById('question-display').innerText = currentNumber;
+      // Hide audio button until they check the answer
+      document.getElementById('listen-btn').classList.add('hidden');
+    }
+    
     window.speechSynthesis.cancel(); 
   }
 
-  function checkNumber() {
-    currentSpelling = numberToGerman(currentNumber);
-    document.getElementById('spelling-display').innerText = currentSpelling;
-    document.getElementById('listen-btn').classList.remove('hidden');
-    
-    // Automatically play the audio when "Check" is clicked
-    playAudio();
+  function checkAnswer() {
+    if (isReverseMode) {
+      document.getElementById('answer-display').innerText = currentNumber;
+    } else {
+      document.getElementById('answer-display').innerText = currentSpelling;
+      document.getElementById('listen-btn').classList.remove('hidden');
+      playAudio();
+    }
   }
 </script>
 </body>
