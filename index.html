@@ -131,7 +131,7 @@
   let isReverseMode = false; // false = Number->Word, true = Word->Number
   let germanVoices = [];
 
-  // 1. Detect and load available German voices on the device
+// 1. Detect and load available German voices on the device
   function populateVoices() {
     const allVoices = window.speechSynthesis.getVoices();
     // Filter for any voice containing 'de' (de-DE, de-AT, etc.)
@@ -145,19 +145,24 @@
       return;
     }
 
+    let bestVoiceIndex = 0; // Fallback to the first available German voice
+
     germanVoices.forEach((voice, index) => {
       const option = document.createElement('option');
       option.value = index;
       option.textContent = voice.name;
       voiceSelect.appendChild(option);
-    });
-  }
 
-  // Browsers load voices asynchronously, so we wait for them
-  if (speechSynthesis.onvoiceschanged !== undefined) {
-    speechSynthesis.onvoiceschanged = populateVoices;
+      // Actively hunt for Google's high-quality network voice
+      let vName = voice.name.toLowerCase();
+      if (vName.includes('google deutsch') || vName.includes('online') || vName.includes('network')) {
+        bestVoiceIndex = index;
+      }
+    });
+
+    // Auto-select the highest quality voice found
+    voiceSelect.value = bestVoiceIndex;
   }
-  setTimeout(populateVoices, 1000); // Fallback
 
   // 2. Translation Logic
   function numberToGerman(num) {
